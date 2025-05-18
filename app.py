@@ -147,16 +147,132 @@ def dashboard():
         print("Fetched boards:", [board["name"] for board in boards])
         
         return render_template_string("""
-        <h1>Your Trello Boards</h1>
-        <ul>
-            {% for board in boards %}
-                <li>{{ board.name }} (ID: {{ board.id }})</li>
-            {% endfor %}
-        </ul>
-        <a href="/logout">Logout</a>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Trello Boards</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #0079BF; }
+                ul { list-style-type: none; padding: 0; }
+                li { margin: 10px 0; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+                a { text-decoration: none; color: #0079BF; }
+                a:hover { text-decoration: underline; }
+                .logout { margin-top: 20px; display: inline-block; padding: 10px; background-color: #EB5A46; color: white; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Your Trello Boards</h1>
+            <ul>
+                {% for board in boards %}
+                    <li>
+                        <a href="/board/{{ board.id }}">{{ board.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+            <a href="/logout" class="logout">Logout</a>
+        </body>
+        </html>
         """, boards=boards)
     except Exception as e:
         print(f"Dashboard error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/board/<board_id>")
+def view_board(board_id):
+    if "access_token" not in session:
+        return redirect(url_for("index"))
+    
+    trello = OAuth1Session(
+        TRELLO_KEY,
+        client_secret=TRELLO_SECRET,
+        resource_owner_key=session["access_token"],
+        resource_owner_secret=session["access_token_secret"]
+    )
+
+    try:
+        # Fetch board details
+        board_response = trello.get(f"https://api.trello.com/1/boards/{board_id}?fields=name,desc,url")
+        board_response.raise_for_status()
+        board = board_response.json()
+        
+        # Fetch lists on the board
+        lists_response = trello.get(f"https://api.trello.com/1/boards/{board_id}/lists?fields=name,id")
+        lists_response.raise_for_status()
+        lists = lists_response.json()
+        
+        # Fetch cards for each list
+        for trello_list in lists:
+            cards_response = trello.get(f"https://api.trello.com/1/lists/{trello_list['id']}/cards?fields=name,desc,due,labels,idMembers")
+            cards_response.raise_for_status()
+            trello_list['cards'] = cards_response.json()
+            
+            # Get member details for each card
+            for card in trello_list['cards']:
+                if card.get('idMembers'):
+                    card['members'] = []
+                    for member_id in card['idMembers']:
+                        member_response = trello.get(f"https://api.trello.com/1/members/{member_id}?fields=fullName,username")
+                        member_response.raise_for_status()
+                        card['members'].append(member_response.json())
+        
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{{ board.name }} - Trello Board</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; }
+                h1 { color: #0079BF; }
+                .board-container { display: flex; overflow-x: auto; padding-bottom: 20px; }
+                .list { min-width: 300px; margin-right: 20px; background-color: #ebecf0; border-radius: 5px; padding: 10px; }
+                .list-header { font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+                .card { background-color: white; padding: 10px; margin-bottom: 10px; border-radius: 3px; box-shadow: 0 1px 0 rgba(9,30,66,.25); }
+                .card-title { font-weight: bold; }
+                .card-due { font-size: 12px; color: #5e6c84; margin-top: 5px; }
+                .card-labels { display: flex; flex-wrap: wrap; margin-top: 5px; }
+                .card-label { height: 8px; width: 40px; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; }
+                .card-members { font-size: 12px; color: #5e6c84; margin-top: 5px; }
+                .back-link { display: inline-block; margin-bottom: 20px; color: #0079BF; text-decoration: none; }
+                .back-link:hover { text-decoration: underline; }
+                .completed { text-decoration: line-through; opacity: 0.7; }
+            </style>
+        </head>
+        <body>
+            <a href="/dashboard" class="back-link">← Back to Boards</a>
+            <h1>{{ board.name }}</h1>
+            
+            <div class="board-container">
+                {% for list in lists %}
+                    <div class="list">
+                        <div class="list-header">{{ list.name }}</div>
+                        {% for card in list.cards %}
+                            <div class="card{% if card.dueComplete %} completed{% endif %}">
+                                <div class="card-title">{{ card.name }}</div>
+                                {% if card.desc %}<div class="card-desc">{{ card.desc }}</div>{% endif %}
+                                {% if card.due %}<div class="card-due">Due: {{ card.due }}</div>{% endif %}
+                                {% if card.labels %}
+                                    <div class="card-labels">
+                                        {% for label in card.labels %}
+                                            <div class="card-label" style="background-color: {% if label.color %}{{ label.color }}{% else %}#b3b3b3{% endif %};" title="{{ label.name }}"></div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if card.members %}
+                                    <div class="card-members">
+                                        Members: {% for member in card.members %}{{ member.fullName }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </body>
+        </html>
+        """, board=board, lists=lists)
+    except Exception as e:
+        print(f"Board view error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/logout")
