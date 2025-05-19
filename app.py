@@ -7,6 +7,7 @@ from trello.api import (
     get_trello_client, get_boards, get_board_details
 )
 from trello.templates import INDEX_TEMPLATE, DASHBOARD_TEMPLATE, BOARD_TEMPLATE
+from trello.agent import summarize_board_activity # Added import for agent
 
 app = Flask(__name__)
 app.secret_key = "fixed_secret_key_for_testing_123456789"  # Fixed key for testing
@@ -86,7 +87,10 @@ def view_board(board_id):
         trello = get_trello_client(session["access_token"], session["access_token_secret"])
         board, lists = get_board_details(trello, board_id)
         
-        return render_template_string(BOARD_TEMPLATE, board=board, lists=lists)
+        # Generate board summary using the agent
+        board_summary = summarize_board_activity((board, lists))
+        
+        return render_template_string(BOARD_TEMPLATE, board=board, lists=lists, board_summary=board_summary)
     except Exception as e:
         print(f"Board view error: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -97,6 +101,48 @@ def logout():
     session.clear()
     print("Session cleared")
     return redirect(url_for("index"))
+
+@app.route("/api/board/<board_id>/summary")
+def api_board_summary(board_id):
+    """API endpoint to get a Trello board summary."""
+    if "access_token" not in session:
+        return jsonify({"error": "User not authenticated. Please login via the web interface first."}), 401
+
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        # This check is important because the agent function relies on this environment variable.
+        print("Error: OPENROUTER_API_KEY environment variable is not set on the server.")
+        return jsonify({"error": "OpenRouter API key not configured on the server."}), 500
+
+    try:
+        trello = get_trello_client(session["access_token"], session["access_token_secret"])
+        # get_board_details returns a tuple: (board_object, lists_with_cards)
+        board_data_tuple = get_board_details(trello, board_id)
+        
+        summary = summarize_board_activity(board_data_tuple)
+        
+        if summary.startswith("Error:"):
+            # The agent encountered an issue (e.g., API key problem, network error with OpenRouter)
+            return jsonify({"error": "Failed to generate summary from agent", "details": summary}), 500
+            
+        return jsonify({"board_id": board_id, "summary": summary})
+        
+    except Exception as e:
+        # Handle potential errors from Trello API (e.g., board not found, Trello auth issue)
+        error_message = f"An unexpected error occurred: {str(e)}"
+        status_code = 500
+        if hasattr(e, 'response') and e.response is not None:
+            if e.response.status_code == 404:
+                error_message = "Trello board not found or access denied."
+                status_code = 404
+            elif e.response.status_code == 401:
+                error_message = "Trello authentication error. Your Trello token may be invalid. Please re-login via the web interface."
+                status_code = 401
+            else:
+                error_message = f"Trello API error: {e.response.status_code} - {e.response.text}"
+                status_code = e.response.status_code
+        
+        print(f"API board summary error for board {board_id}: {error_message}")
+        return jsonify({"error": error_message}), status_code
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

@@ -173,6 +173,23 @@ BOARD_TEMPLATE = """
             text-decoration: underline;
         }
         .completed { text-decoration: line-through; opacity: 0.7; }
+        .ai-summary {
+            background-color: #e6f7ff; /* Light blue background */
+            border: 1px solid #91d5ff; /* Blue border */
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .ai-summary h2 {
+            margin-top: 0;
+            color: #0050b3; /* Darker blue for heading */
+            font-size: 1.2em;
+        }
+        .ai-summary p {
+            white-space: pre-wrap; /* Preserve line breaks from the summary */
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -183,6 +200,13 @@ BOARD_TEMPLATE = """
         </div>
         <a href="/logout" class="back-link">Logout</a>
     </div>
+
+    {% if board_summary %}
+    <div class="ai-summary">
+        <h2>AI Generated Summary</h2>
+        <p>{{ board_summary }}</p>
+    </div>
+    {% endif %}
     
     <div class="board-container">
         {% for list in lists %}
