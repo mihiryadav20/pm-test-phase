@@ -1,5 +1,9 @@
 from flask import Flask, redirect, url_for, request, jsonify, session, render_template_string
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import our custom modules
 from trello.api import (
@@ -7,7 +11,7 @@ from trello.api import (
     get_trello_client, get_boards, get_board_details
 )
 from trello.templates import INDEX_TEMPLATE, DASHBOARD_TEMPLATE, BOARD_TEMPLATE
-from trello.agent import summarize_board_activity # Added import for agent
+from trello.agent import generate_board_report # Updated import for agent
 
 app = Flask(__name__)
 app.secret_key = "fixed_secret_key_for_testing_123456789"  # Fixed key for testing
@@ -87,10 +91,10 @@ def view_board(board_id):
         trello = get_trello_client(session["access_token"], session["access_token_secret"])
         board, lists = get_board_details(trello, board_id)
         
-        # Generate board summary using the agent
-        board_summary = summarize_board_activity((board, lists))
+        # Generate board report using the agent
+        board_report = generate_board_report((board, lists))
         
-        return render_template_string(BOARD_TEMPLATE, board=board, lists=lists, board_summary=board_summary)
+        return render_template_string(BOARD_TEMPLATE, board=board, lists=lists, board_summary=board_report)
     except Exception as e:
         print(f"Board view error: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -118,13 +122,13 @@ def api_board_summary(board_id):
         # get_board_details returns a tuple: (board_object, lists_with_cards)
         board_data_tuple = get_board_details(trello, board_id)
         
-        summary = summarize_board_activity(board_data_tuple)
+        report = generate_board_report(board_data_tuple)
         
-        if summary.startswith("Error:"):
+        if report.startswith("Error:"):
             # The agent encountered an issue (e.g., API key problem, network error with OpenRouter)
-            return jsonify({"error": "Failed to generate summary from agent", "details": summary}), 500
+            return jsonify({"error": "Failed to generate report from agent", "details": report}), 500
             
-        return jsonify({"board_id": board_id, "summary": summary})
+        return jsonify({"board_id": board_id, "report": report})
         
     except Exception as e:
         # Handle potential errors from Trello API (e.g., board not found, Trello auth issue)
@@ -145,4 +149,4 @@ def api_board_summary(board_id):
         return jsonify({"error": error_message}), status_code
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)

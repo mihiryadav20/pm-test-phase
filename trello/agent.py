@@ -3,19 +3,19 @@ import requests # We'll need this to call the OpenRouter API
 import json
 
 # It's crucial to manage your OpenRouter API key securely.
-# Avoid hardcoding it. Use environment variables or a config file.
-OPENROUTER_API_KEY = "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"  # Directly set for testing
+# Use environment variables instead of hardcoding it
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions" # Common endpoint
 
-def _prepare_prompt_for_summary(board_data):
+def _prepare_prompt_for_report(board_data):
     """
-    Prepares a detailed prompt for the LLM to summarize board activity.
+    Prepares a detailed prompt for the LLM to build a comprehensive report of the board.
     """
     board_name = board_data.get('name', 'N/A')
     board_desc = board_data.get('desc', 'No description')
     lists = board_data.get('lists', [])
 
-    prompt_content = f"Analyze the following Trello board data and provide a concise summary of its activity and content.\n\n"
+    prompt_content = f"Analyze the following Trello board data and build a comprehensive report.\n\n"
     prompt_content += f"Board Name: {board_name}\n"
     prompt_content += f"Board Description: {board_desc}\n\n"
 
@@ -47,12 +47,18 @@ def _prepare_prompt_for_summary(board_data):
                 if members:
                     prompt_content += f"    Assigned Members: {', '.join(members)}\n"
     
-    prompt_content += "\nBased on this data, please provide a summary."
+    prompt_content += "\nBased on this data, please build a comprehensive report that includes:\n"  
+    prompt_content += "1. Overall board status and progress\n"
+    prompt_content += "2. Key metrics (number of cards in each list, completion percentage)\n"
+    prompt_content += "3. Task distribution among team members\n"
+    prompt_content += "4. Upcoming deadlines and priority items\n"
+    prompt_content += "5. Recommendations for improving workflow or addressing bottlenecks\n"
+    prompt_content += "\nFormat the report in a clear, professional structure with headings and bullet points where appropriate."
     return prompt_content
 
-def summarize_board_activity(board_details_from_trello_api):
+def generate_board_report(board_details_from_trello_api):
     """
-    Uses OpenRouter API to generate a summary of the Trello board.
+    Uses OpenRouter API to generate a comprehensive report of the Trello board.
     'board_details_from_trello_api' is a tuple (board, lists) as returned by get_board_details.
     """
     if not OPENROUTER_API_KEY:
@@ -67,7 +73,7 @@ def summarize_board_activity(board_details_from_trello_api):
         "lists": lists_with_cards
     }
 
-    prompt = _prepare_prompt_for_summary(combined_board_data)
+    prompt = _prepare_prompt_for_report(combined_board_data)
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -80,7 +86,7 @@ def summarize_board_activity(board_details_from_trello_api):
     payload = {
         "model": "openai/gpt-3.5-turbo", # Example model, choose one available on OpenRouter
         "messages": [
-            {"role": "system", "content": "You are an AI assistant that summarizes Trello board content."},
+            {"role": "system", "content": "You are an AI assistant that builds comprehensive reports for Trello boards. Your reports are detailed, analytical, and provide actionable insights."},
             {"role": "user", "content": prompt}
         ]
     }
@@ -89,16 +95,16 @@ def summarize_board_activity(board_details_from_trello_api):
         response = requests.post(OPENROUTER_API_URL, headers=headers, json=payload)
         response.raise_for_status()  # Raise an exception for HTTP errors
         
-        summary = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-        return summary.strip() if summary else "Could not generate a summary."
+        report = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        return report.strip() if report else "Could not generate a board report."
 
     except requests.exceptions.RequestException as e:
         print(f"Error calling OpenRouter API: {e}")
-        return f"Error: Could not connect to OpenRouter API. {e}"
+        return f"Error: Could not connect to OpenRouter API to generate report. {e}"
     except (KeyError, IndexError) as e:
         print(f"Error parsing OpenRouter API response: {e}")
         print(f"Response content: {response.text if 'response' in locals() else 'No response object'}")
-        return "Error: Could not parse the summary from OpenRouter API response."
+        return "Error: Could not parse the report from OpenRouter API response."
 
 if __name__ == '__main__':
     # Example usage (for testing this module directly)
