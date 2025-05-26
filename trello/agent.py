@@ -4,7 +4,7 @@ import json
 
 # It's crucial to manage your OpenRouter API key securely.
 # Use environment variables instead of hardcoding it
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions" # Common endpoint
 
 def _prepare_prompt_for_report(board_data):
