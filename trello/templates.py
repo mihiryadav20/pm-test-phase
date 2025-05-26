@@ -173,7 +173,7 @@ BOARD_TEMPLATE = """
             text-decoration: underline;
         }
         .completed { text-decoration: line-through; opacity: 0.7; }
-        .ai-summary {
+        .ai-report {
             background-color: #e6f7ff; /* Light blue background */
             border: 1px solid #91d5ff; /* Blue border */
             border-radius: 5px;
@@ -181,14 +181,26 @@ BOARD_TEMPLATE = """
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        .ai-summary h2 {
+        .ai-report h2 {
             margin-top: 0;
             color: #0050b3; /* Darker blue for heading */
             font-size: 1.2em;
         }
-        .ai-summary p {
-            white-space: pre-wrap; /* Preserve line breaks from the summary */
+        .ai-report h3 {
+            color: #0050b3; /* Darker blue for heading */
+            font-size: 1.1em;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #91d5ff;
+            padding-bottom: 5px;
+        }
+        .ai-report p {
+            white-space: pre-wrap; /* Preserve line breaks from the report */
             line-height: 1.6;
+        }
+        .ai-report ul {
+            margin-top: 5px;
+            padding-left: 20px;
         }
     </style>
 </head>
@@ -202,9 +214,9 @@ BOARD_TEMPLATE = """
     </div>
 
     {% if board_summary %}
-    <div class="ai-summary">
-        <h2>AI Generated Summary</h2>
-        <p>{{ board_summary }}</p>
+    <div class="ai-report">
+        <h2>AI Generated Board Report</h2>
+        <p>{{ board_summary|safe }}</p>
     </div>
     {% endif %}
     

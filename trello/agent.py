@@ -4,7 +4,7 @@ import json
 
 # It's crucial to manage your OpenRouter API key securely.
 # Use environment variables instead of hardcoding it
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions" # Common endpoint
 
 def _prepare_prompt_for_report(board_data):
@@ -141,11 +141,11 @@ if __name__ == '__main__':
             ]
         }
         
-        # The summarize_board_activity function expects a tuple (board_object, lists_with_cards)
+        # The generate_board_report function expects a tuple (board_object, lists_with_cards)
         # So we adapt the mock_board_data
         mock_board_object = {"name": mock_board_data["name"], "desc": mock_board_data["desc"]}
         mock_lists_with_cards = mock_board_data["lists"]
         
-        summary = summarize_board_activity((mock_board_object, mock_lists_with_cards))
-        print("\nGenerated Summary:")
-        print(summary)
+        report = generate_board_report((mock_board_object, mock_lists_with_cards))
+        print("\nGenerated Board Report:")
+        print(report)
