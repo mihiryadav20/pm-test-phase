@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import re
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -57,8 +58,27 @@ def _prepare_prompt_for_report(board_data):
     prompt_content += "3. Task distribution among team members\n"
     prompt_content += "4. Upcoming deadlines and priority items\n"
     prompt_content += "5. Recommendations for improving workflow or addressing bottlenecks\n"
-    prompt_content += "\nFormat the report in a clear, professional structure with headings and bullet points where appropriate."
+    prompt_content += "\nIMPORTANT: Format the report in a clear, professional structure with plain text headings. DO NOT use markdown formatting like **, ##, or any other markdown syntax. The report should look like a natural document without any markdown formatting."
     return prompt_content
+
+def _clean_markdown_formatting(text):
+    """
+    Removes markdown formatting from text to make it look more natural.
+    """
+    # Remove markdown headers (## and similar)
+    text = re.sub(r'^\s*#{1,6}\s+', '', text, flags=re.MULTILINE)
+    
+    # Remove bold/italic formatting (**text** or *text*)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    
+    # Remove backticks (`code`)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    
+    # Remove markdown links [text](url) -> text
+    text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
+    
+    return text
 
 def generate_board_report(board_details_from_trello_api):
     """
@@ -92,7 +112,7 @@ def generate_board_report(board_details_from_trello_api):
             {
                 "parts": [
                     {
-                        "text": "You are an AI assistant that builds comprehensive reports for Trello boards. Your reports are detailed, analytical, and provide actionable insights.\n\n" + prompt
+                        "text": "You are an AI assistant that builds comprehensive reports for Trello boards. Your reports are detailed, analytical, and provide actionable insights. IMPORTANT: Your reports must be formatted in plain text without any markdown formatting (no **, ##, or other markdown syntax). Use plain text headings and formatting only.\n\n" + prompt
                     }
                 ]
             }
@@ -110,7 +130,10 @@ def generate_board_report(board_details_from_trello_api):
             if 'content' in candidate and 'parts' in candidate['content']:
                 parts = candidate['content']['parts']
                 if parts and 'text' in parts[0]:
-                    return parts[0]['text'].strip()
+                    # Clean any markdown formatting that might still be present
+                    report_text = parts[0]['text'].strip()
+                    clean_report = _clean_markdown_formatting(report_text)
+                    return clean_report
         
         print(f"Unexpected response structure: {response.text}")
         return "Could not generate a board report due to unexpected API response structure."
