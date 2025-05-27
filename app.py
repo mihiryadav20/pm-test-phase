@@ -112,10 +112,10 @@ def api_board_summary(board_id):
     if "access_token" not in session:
         return jsonify({"error": "User not authenticated. Please login via the web interface first."}), 401
 
-    if not os.environ.get("OPENROUTER_API_KEY"):
+    if not os.environ.get("GEMINI_API_KEY"):
         # This check is important because the agent function relies on this environment variable.
-        print("Error: OPENROUTER_API_KEY environment variable is not set on the server.")
-        return jsonify({"error": "OpenRouter API key not configured on the server."}), 500
+        print("Error: GEMINI_API_KEY environment variable is not set on the server.")
+        return jsonify({"error": "Gemini API key not configured on the server."}), 500
 
     try:
         trello = get_trello_client(session["access_token"], session["access_token_secret"])

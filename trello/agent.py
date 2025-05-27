@@ -1,11 +1,15 @@
 import os
-import requests # We'll need this to call the OpenRouter API
+import requests
 import json
+from dotenv import load_dotenv
 
-# It's crucial to manage your OpenRouter API key securely.
-# Use environment variables instead of hardcoding it
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Fallback to hardcoded value for testing only
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions" # Common endpoint
+# Load environment variables from .env file
+load_dotenv()
+
+# It's crucial to manage API keys securely.
+# Use environment variables instead of hardcoding them
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 def _prepare_prompt_for_report(board_data):
     """
@@ -58,11 +62,11 @@ def _prepare_prompt_for_report(board_data):
 
 def generate_board_report(board_details_from_trello_api):
     """
-    Uses OpenRouter API to generate a comprehensive report of the Trello board.
+    Uses Google's Gemini API to generate a comprehensive report of the Trello board.
     'board_details_from_trello_api' is a tuple (board, lists) as returned by get_board_details.
     """
-    if not OPENROUTER_API_KEY:
-        return "Error: OPENROUTER_API_KEY is not set. Please set it as an environment variable."
+    if not GEMINI_API_KEY:
+        return "Error: GEMINI_API_KEY is not set. Please set it as an environment variable."
 
     board_object, lists_with_cards = board_details_from_trello_api
     
@@ -75,45 +79,58 @@ def generate_board_report(board_details_from_trello_api):
 
     prompt = _prepare_prompt_for_report(combined_board_data)
 
+    # Construct the URL with API key
+    url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+    
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    # Example payload for a chat completion model on OpenRouter
-    # You might need to adjust the model name and other parameters.
-    # Refer to OpenRouter documentation for specific model details.
+    # Payload structure for Gemini API based on the provided curl example
     payload = {
-        "model": "openai/gpt-3.5-turbo", # Example model, choose one available on OpenRouter
-        "messages": [
-            {"role": "system", "content": "You are an AI assistant that builds comprehensive reports for Trello boards. Your reports are detailed, analytical, and provide actionable insights."},
-            {"role": "user", "content": prompt}
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": "You are an AI assistant that builds comprehensive reports for Trello boards. Your reports are detailed, analytical, and provide actionable insights.\n\n" + prompt
+                    }
+                ]
+            }
         ]
     }
 
     try:
-        response = requests.post(OPENROUTER_API_URL, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()  # Raise an exception for HTTP errors
         
-        report = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-        return report.strip() if report else "Could not generate a board report."
+        response_data = response.json()
+        # Extract text from Gemini API response
+        if 'candidates' in response_data and len(response_data['candidates']) > 0:
+            candidate = response_data['candidates'][0]
+            if 'content' in candidate and 'parts' in candidate['content']:
+                parts = candidate['content']['parts']
+                if parts and 'text' in parts[0]:
+                    return parts[0]['text'].strip()
+        
+        print(f"Unexpected response structure: {response.text}")
+        return "Could not generate a board report due to unexpected API response structure."
 
     except requests.exceptions.RequestException as e:
-        print(f"Error calling OpenRouter API: {e}")
-        return f"Error: Could not connect to OpenRouter API to generate report. {e}"
-    except (KeyError, IndexError) as e:
-        print(f"Error parsing OpenRouter API response: {e}")
+        print(f"Error calling Gemini API: {e}")
+        return f"Error: Could not connect to Gemini API to generate report. {e}"
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        print(f"Error parsing Gemini API response: {e}")
         print(f"Response content: {response.text if 'response' in locals() else 'No response object'}")
-        return "Error: Could not parse the report from OpenRouter API response."
+        return "Error: Could not parse the report from Gemini API response."
 
 if __name__ == '__main__':
     # Example usage (for testing this module directly)
-    # This requires you to have OPENROUTER_API_KEY set as an environment variable
+    # This requires you to have GEMINI_API_KEY set as an environment variable
     # And to mock or provide actual board data.
     
     print("Testing agent.py directly...")
-    if not OPENROUTER_API_KEY:
-        print("Skipping test: OPENROUTER_API_KEY not set.")
+    if not GEMINI_API_KEY:
+        print("Skipping test: GEMINI_API_KEY not set.")
     else:
         mock_board_data = {
             "name": "Project Alpha",
