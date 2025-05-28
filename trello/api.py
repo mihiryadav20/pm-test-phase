@@ -3,8 +3,8 @@ import os
 import json
 
 # Trello configuration
-TRELLO_KEY = "a2f217e66e60163384df3e891fd329a8"
-TRELLO_SECRET = "904e785848d1994523d17337b16a4473da7a9747690587d76f1b78e1dfa3779f"
+TRELLO_KEY = os.environ.get("TRELLO_KEY", "a2f217e66e60163384df3e891fd329a8")
+TRELLO_SECRET = os.environ.get("TRELLO_SECRET", "904e785848d1994523d17337b16a4473da7a9747690587d76f1b78e1dfa3779f")
 REQUEST_TOKEN_URL = "https://trello.com/1/OAuthGetRequestToken"
 AUTHORIZE_URL = "https://trello.com/1/OAuthAuthorizeToken"
 ACCESS_TOKEN_URL = "https://trello.com/1/OAuthGetAccessToken"
