@@ -8,7 +8,7 @@ TRELLO_SECRET = os.environ.get("TRELLO_SECRET", "904e785848d1994523d17337b16a447
 REQUEST_TOKEN_URL = "https://trello.com/1/OAuthGetRequestToken"
 AUTHORIZE_URL = "https://trello.com/1/OAuthAuthorizeToken"
 ACCESS_TOKEN_URL = "https://trello.com/1/OAuthGetAccessToken"
-CALLBACK_URI = os.environ.get("TRELLO_CALLBACK_URI", "http://localhost:5001/callback")
+CALLBACK_URI = os.environ.get("TRELLO_CALLBACK_URI", "https://mihiryadav20.pythonanywhere.com/callback")
 
 # Directory for token storage
 TOKEN_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tokens")
